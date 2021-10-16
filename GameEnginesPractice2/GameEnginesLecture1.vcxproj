@@ -154,21 +154,27 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CelestialBody.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="Main.h" />
+    <ClInclude Include="MTQueue.h" />
     <ClInclude Include="RenderEngine.h" />
     <ClInclude Include="ProjectDefines.h" />
     <ClInclude Include="RenderThread.h" />
+    <ClInclude Include="SceneObject.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Universe.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CelestialBody.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="RenderEngine.cpp" />
     <ClCompile Include="RenderThread.cpp" />
+    <ClCompile Include="SceneObject.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

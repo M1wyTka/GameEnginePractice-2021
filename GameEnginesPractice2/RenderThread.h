@@ -1,5 +1,7 @@
 #pragma once
 
+#include "MTQueue.h"
+
 #include <thread>
 #include <condition_variable>
 #include <mutex>
@@ -15,7 +17,9 @@ enum RenderCommand : UINT32
 	eRC_SetupDefaultCamera,
 	eRC_SetupDefaultCompositor,
 	eRC_LoadDefaultResources,
-	eRC_LoadOgreHead,
+	eRC_LoadOgreHead, 
+	eRC_LoadActor,
+	eRC_UpdateActorPosition,
 	eRC_SetupDefaultLight,
 	eRC_OscillateCamera,
 	eRC_BeginFrame,
@@ -36,8 +40,10 @@ public:
 	void RC_SetupDefaultCompositor();
 	void RC_LoadDefaultResources();
 	void RC_LoadOgreHead();
+	void RC_LoadPlanet(CelestialBody* actor, Ogre::Vector3 pos);
 	void RC_SetupDefaultLight();
 	void RC_OscillateCamera(float time);
+	void RC_UpdateActorPosition(SceneObject* actor, Ogre::Vector3 pos);
 	void RC_BeginFrame();
 	void RC_EndFrame();
 
@@ -51,7 +57,7 @@ private:
 	
 	RenderEngine* m_pRenderEngine;
 	
-	std::vector<byte> m_Commands[2];
+	MTQueue<byte> m_Commands[2];
 	int m_nCurrentFrame;
 	int m_nFrameFill;
 
@@ -61,6 +67,9 @@ private:
 	inline byte* AddCommand(RenderCommand eRC, size_t nParamBytes);
 	inline void AddDWORD(byte*& ptr, UINT32 nVal);
 	inline void AddFloat(byte*& ptr, const float fVal);
+	
+	template <class T>
+	inline void AddWTF(byte*& ptr, T TVal);
 
 	bool IsRenderThread();
 

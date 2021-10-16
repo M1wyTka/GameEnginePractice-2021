@@ -2,6 +2,8 @@
 
 #include "RenderEngine.h"
 #include "GameTimer.h"
+#include "CelestialBody.h"
+#include "Universe.h"
 
 class Game
 {
@@ -17,5 +19,8 @@ public:
 private:
 	GameTimer m_Timer;
 	RenderEngine* m_pRenderEngine;
+
+	std::vector<CelestialBody*> solarSystem;
+	void GenerateSolarSystem();
 };
 

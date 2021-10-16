@@ -12,14 +12,16 @@ RenderEngine::RenderEngine() :
 	m_pRT(nullptr),
 	m_bQuit(false)
 {
+	isInited = false;
 	m_pRT = new RenderThread(this);
 
 	m_pRT->RC_Init();
 	m_pRT->RC_SetupDefaultCamera();
 	m_pRT->RC_SetupDefaultCompositor();
 	m_pRT->RC_LoadDefaultResources();
-	m_pRT->RC_LoadOgreHead();
+
 	m_pRT->RC_SetupDefaultLight();
+	m_pRT->RC_LoadOgreHead();
 
 	m_pRT->Start();
 }
@@ -85,7 +87,7 @@ void RenderEngine::RT_SetupDefaultCamera()
 {
 	m_pCamera = m_pSceneManager->createCamera("Main Camera");
 
-	m_pCamera->setPosition(Ogre::Vector3(0, 10, 15));
+	m_pCamera->setPosition(Ogre::Vector3(100, 100, 100));
 	m_pCamera->lookAt(Ogre::Vector3(0, 0, 0));
 	m_pCamera->setNearClipDistance(0.2f);
 	m_pCamera->setFarClipDistance(1000.0f);
@@ -109,8 +111,17 @@ void RenderEngine::RT_SetupDefaultCompositor()
 void RenderEngine::RT_LoadDefaultResources()
 {
 	Ogre::ConfigFile cf;
-	cf.load("resources2.cfg");
+	cf.load(RESOURCE_CONFIG);
 
+	LoadConfigSections(cf);
+
+	LoadHlms(cf);
+
+	Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups(true);
+}
+
+void RenderEngine::LoadConfigSections(Ogre::ConfigFile& cf)
+{
 	// Go through all sections & settings in the file
 	Ogre::ConfigFile::SectionIterator seci = cf.getSectionIterator();
 
@@ -132,13 +143,17 @@ void RenderEngine::RT_LoadDefaultResources()
 			}
 		}
 	}
-
-	LoadHlms(cf);
-
-	Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups(true);
 }
 
 void RenderEngine::LoadHlms(Ogre::ConfigFile& cf)
+{
+	// Load hlms (high level material system) files
+	Ogre::String rootHlmsFolder = GetRootHlmsFolder(cf);
+	RegisterHlms(rootHlmsFolder);
+
+}
+
+Ogre::String RenderEngine::GetRootHlmsFolder(Ogre::ConfigFile& cf)
 {
 	// Load hlms (high level material system) files
 	Ogre::String rootHlmsFolder = cf.getSetting("DoNotUseAsResource", "Hlms", "");
@@ -147,71 +162,67 @@ void RenderEngine::LoadHlms(Ogre::ConfigFile& cf)
 		rootHlmsFolder = "./";
 	else if (*(rootHlmsFolder.end() - 1) != '/')
 		rootHlmsFolder += "/";
+	return rootHlmsFolder;
+}
 
-	//At this point rootHlmsFolder should be a valid path to the Hlms data folder
-
-	Ogre::HlmsUnlit* hlmsUnlit = nullptr;
-	Ogre::HlmsPbs* hlmsPbs = nullptr;
-
+void RenderEngine::RegisterHlms(Ogre::String rootHlmsFolder)
+{
 	//For retrieval of the paths to the different folders needed
 	Ogre::String mainFolderPath;
 	Ogre::StringVector libraryFoldersPaths;
-	Ogre::StringVector::const_iterator libraryFolderPathIt;
-	Ogre::StringVector::const_iterator libraryFolderPathEn;
 
 	Ogre::ArchiveManager& archiveManager = Ogre::ArchiveManager::getSingleton();
 
-	{
-		//Create & Register HlmsUnlit
+	//Create & Register HlmsUnlit
 		//Get the path to all the subdirectories used by HlmsUnlit
-		Ogre::HlmsUnlit::getDefaultPaths(mainFolderPath, libraryFoldersPaths);
-		Ogre::Archive* archiveUnlit = archiveManager.load(rootHlmsFolder + mainFolderPath,
-			"FileSystem", true);
-		Ogre::ArchiveVec archiveUnlitLibraryFolders;
-		libraryFolderPathIt = libraryFoldersPaths.begin();
-		libraryFolderPathEn = libraryFoldersPaths.end();
-		while (libraryFolderPathIt != libraryFolderPathEn)
-		{
-			Ogre::Archive* archiveLibrary =
-				archiveManager.load(rootHlmsFolder + *libraryFolderPathIt, "FileSystem", true);
-			archiveUnlitLibraryFolders.push_back(archiveLibrary);
-			++libraryFolderPathIt;
-		}
+	Ogre::HlmsUnlit::getDefaultPaths(mainFolderPath, libraryFoldersPaths);
+	Ogre::Archive* archiveUnlit = archiveManager.load(rootHlmsFolder + mainFolderPath,
+		"FileSystem", true);
 
-		//Create and register the unlit Hlms
-		hlmsUnlit = OGRE_NEW Ogre::HlmsUnlit(archiveUnlit, &archiveUnlitLibraryFolders);
-		Ogre::Root::getSingleton().getHlmsManager()->registerHlms(hlmsUnlit);
-	}
+	Ogre::ArchiveVec archiveUnlitLibraryFolders;
+	GetHlmArchiveVec(archiveUnlitLibraryFolders, rootHlmsFolder, libraryFoldersPaths);
 
+	//Create and register the unlit Hlms
+	Ogre::HlmsUnlit* hlmsUnlit = OGRE_NEW Ogre::HlmsUnlit(archiveUnlit, &archiveUnlitLibraryFolders);
+	Ogre::Root::getSingleton().getHlmsManager()->registerHlms(hlmsUnlit);
+
+	//Create & Register HlmsPbs
+	//Do the same for HlmsPbs:
+	Ogre::HlmsPbs::getDefaultPaths(mainFolderPath, libraryFoldersPaths);
+	Ogre::Archive* archivePbs = archiveManager.load(rootHlmsFolder + mainFolderPath,
+		"FileSystem", true);
+
+	//Get the library archive(s)
+	Ogre::ArchiveVec archivePbsLibraryFolders;
+	GetHlmArchiveVec(archivePbsLibraryFolders, rootHlmsFolder, libraryFoldersPaths);
+
+	//Create and register
+	Ogre::HlmsPbs* hlmsPbs = OGRE_NEW Ogre::HlmsPbs(archivePbs, &archivePbsLibraryFolders);
+	Ogre::Root::getSingleton().getHlmsManager()->registerHlms(hlmsPbs);
+
+	SetHlmsTextureBufferSize(hlmsPbs, hlmsUnlit);
+}
+
+void RenderEngine::GetHlmArchiveVec(Ogre::ArchiveVec& archiveVec, Ogre::String rootHlmsFolder, Ogre::StringVector libraryFoldersPaths)
+{
+	//Get the library archive(s)
+	Ogre::ArchiveManager& archiveManager = Ogre::ArchiveManager::getSingleton();
+	Ogre::StringVector::const_iterator libraryFolderPathIt = libraryFoldersPaths.begin();;
+	Ogre::StringVector::const_iterator libraryFolderPathEn = libraryFoldersPaths.end();;
+	while (libraryFolderPathIt != libraryFolderPathEn)
 	{
-		//Create & Register HlmsPbs
-		//Do the same for HlmsPbs:
-		Ogre::HlmsPbs::getDefaultPaths(mainFolderPath, libraryFoldersPaths);
-		Ogre::Archive* archivePbs = archiveManager.load(rootHlmsFolder + mainFolderPath,
-			"FileSystem", true);
-
-		//Get the library archive(s)
-		Ogre::ArchiveVec archivePbsLibraryFolders;
-		libraryFolderPathIt = libraryFoldersPaths.begin();
-		libraryFolderPathEn = libraryFoldersPaths.end();
-		while (libraryFolderPathIt != libraryFolderPathEn)
-		{
-			Ogre::Archive* archiveLibrary =
-				archiveManager.load(rootHlmsFolder + *libraryFolderPathIt, "FileSystem", true);
-			archivePbsLibraryFolders.push_back(archiveLibrary);
-			++libraryFolderPathIt;
-		}
-
-		//Create and register
-		hlmsPbs = OGRE_NEW Ogre::HlmsPbs(archivePbs, &archivePbsLibraryFolders);
-		Ogre::Root::getSingleton().getHlmsManager()->registerHlms(hlmsPbs);
+		Ogre::Archive* archiveLibrary =
+			archiveManager.load(rootHlmsFolder + *libraryFolderPathIt, "FileSystem", true);
+		archiveVec.push_back(archiveLibrary);
+		++libraryFolderPathIt;
 	}
+}
 
-
+void RenderEngine::SetHlmsTextureBufferSize(Ogre::HlmsPbs* hlmsPbs, Ogre::HlmsUnlit* hlmsUnlit)
+{
 	Ogre::RenderSystem* renderSystem = m_pRoot->getRenderSystem();
 	bool supportsNoOverwriteOnTextureBuffers;
-	renderSystem->getCustomAttribute("MapNoOverwriteOnDynamicBufferSRV",
-		&supportsNoOverwriteOnTextureBuffers);
+	renderSystem->getCustomAttribute("MapNoOverwriteOnDynamicBufferSRV", &supportsNoOverwriteOnTextureBuffers);
 
 	if (!supportsNoOverwriteOnTextureBuffers)
 	{
@@ -222,42 +233,9 @@ void RenderEngine::LoadHlms(Ogre::ConfigFile& cf)
 
 void RenderEngine::RT_LoadOgreHead()
 {
-	//Load the v1 mesh. Notice the v1 namespace
-	//Also notice the HBU_STATIC flag; since the HBU_WRITE_ONLY
-	//bit would prohibit us from reading the data for importing.
-	Ogre::v1::MeshPtr v1Mesh;
-	Ogre::MeshPtr v2Mesh;
-
-	v1Mesh = Ogre::v1::MeshManager::getSingleton().load(
-		"ogrehead.mesh", Ogre::ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
-		Ogre::v1::HardwareBuffer::HBU_STATIC, Ogre::v1::HardwareBuffer::HBU_STATIC);
-
-	//Create a v2 mesh to import to, with a different name (arbitrary).
-	v2Mesh = Ogre::MeshManager::getSingleton().createManual(
-		"ogrehead.mesh Imported", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-
-	bool halfPosition = true;
-	bool halfUVs = true;
-	bool useQtangents = true;
-
-	//Import the v1 mesh to v2
-	v2Mesh->importV1(v1Mesh.get(), halfPosition, halfUVs, useQtangents);
-
-	//We don't need the v1 mesh. Free CPU memory, get it out of the GPU.
-	//Leave it loaded if you want to use athene with v1 Entity.
-	v1Mesh->unload();
-
-	//Create an Item with the model we just imported.
-	//Notice we use the name of the imported model. We could also use the overload
-	//with the mesh pointer:
-	Ogre::Item* item = m_pSceneManager->createItem("ogrehead.mesh Imported",
-		Ogre::ResourceGroupManager::
-		AUTODETECT_RESOURCE_GROUP_NAME,
-		Ogre::SCENE_DYNAMIC);
-	Ogre::SceneNode* sceneNode = m_pSceneManager->getRootSceneNode(Ogre::SCENE_DYNAMIC)->
-		createChildSceneNode(Ogre::SCENE_DYNAMIC);
-	sceneNode->attachObject(item);
-	sceneNode->scale(0.1f, 0.1f, 0.1f);
+	OgreHead = new SceneObject(*m_pSceneManager, "fish.mesh");
+	OgreHead->SetPosition(Ogre::Vector3(0, 0, 0));
+	isInited = true;
 }
 
 void RenderEngine::RT_SetupDefaultLight()
@@ -273,5 +251,24 @@ void RenderEngine::RT_SetupDefaultLight()
 
 void RenderEngine::RT_OscillateCamera(float time)
 {
-	m_pCamera->setPosition(Ogre::Vector3(0, time, 15));
+	m_pCamera->setPosition(Ogre::Vector3(50, time, 50));
+}
+
+void RenderEngine::RT_LoadPlanet(CelestialBody* actor, Ogre::Vector3 pos)
+{
+	actor->SetSceneNode(new SceneObject(*m_pSceneManager, "Sphere.mesh"));
+	actor->GetActor()->SetPosition(pos);
+}
+
+void RenderEngine::RT_UpdateActorPosition(SceneObject* actor, Ogre::Vector3 pos)
+{
+	actor->SetPosition(pos);
+}
+
+SceneObject* RenderEngine::CreateSceneObject(Ogre::String actorName, Ogre::String meshName)
+{
+	//std::lock_guard<std::mutex> lock(creation);
+	return new SceneObject(*m_pSceneManager, meshName);
+
+	//return new SceneObject(*m_pSceneManager, meshName);
 }
