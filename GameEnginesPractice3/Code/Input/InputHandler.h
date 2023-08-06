@@ -6,6 +6,10 @@
 #include <unordered_map>
 #include <bitset>
 
+#include "Ogre.h"
+
+#include <windows.h>
+
 class InputHandler
 {
 public:
@@ -15,7 +19,10 @@ public:
 	void Update();
 
 	const std::bitset<eIC_Max>& GetInputState() const;
+	Ogre::Vector2 MousePos() const;
+	Ogre::Vector2 DeltaMousePos() const;
 
+	void SetWinHandle(HWND window);
 private:
 	void LoadConfiguration();
 
@@ -39,5 +46,12 @@ private:
 	TCommandSymbolMap m_commandSymbolMap;
 
 	std::bitset<eIC_Max> m_InputState;
+	
+	HWND m_pWinHandle;
+	POINT m_pMousePoint;
+	Ogre::Vector2 m_pCurMousePos;
+	Ogre::Vector2 m_pPrevMousePos;
+
+
 };
 

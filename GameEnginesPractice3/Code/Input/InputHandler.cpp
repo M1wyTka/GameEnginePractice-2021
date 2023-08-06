@@ -1,12 +1,10 @@
 #include "InputHandler.h"
 #include "../ProjectDefines.h"
 
-#include "Ogre.h"
-
 #include <algorithm>
 #include <windows.h>
 
-InputHandler::InputHandler(const std::string& strResourceRoot)
+InputHandler::InputHandler(const std::string& strResourceRoot) : m_pWinHandle(nullptr)
 {
 	m_strMapFilePath = strResourceRoot + "actionmap.ini";
 	std::replace(m_strMapFilePath.begin(), m_strMapFilePath.end(), '\\', '/');
@@ -20,7 +18,6 @@ InputHandler::InputHandler(const std::string& strResourceRoot)
 	MapCommandSymbol("GoRight", eIC_GoRight, "d");
 
 	LoadConfiguration();
-
 	Remap();
 }
 
@@ -91,9 +88,42 @@ void InputHandler::Update()
 	{
 		m_InputState.set(it.second, IsKeyDown(it.first));
 	}
+
+	if (m_pWinHandle) 
+	{
+		m_pPrevMousePos = m_pCurMousePos;
+
+		GetCursorPos(&m_pMousePoint);
+		ScreenToClient(m_pWinHandle, &m_pMousePoint);
+		
+		float x = float(m_pMousePoint.x);
+		float y = float(m_pMousePoint.y);
+		m_pCurMousePos = Ogre::Vector2(x, y);
+	}
+}
+
+void InputHandler::SetWinHandle(HWND window)
+{
+	m_pWinHandle = window;
+	GetCursorPos(&m_pMousePoint);
+	ScreenToClient(m_pWinHandle, &m_pMousePoint);
+
+	float x = float(m_pMousePoint.x);
+	float y = float(m_pMousePoint.y);
+	m_pCurMousePos = Ogre::Vector2(x, y);
 }
 
 const std::bitset<eIC_Max>& InputHandler::GetInputState() const
 {
 	return m_InputState;
+}
+
+Ogre::Vector2 InputHandler::MousePos() const
+{
+	return m_pCurMousePos;
+}
+
+Ogre::Vector2 InputHandler::DeltaMousePos() const
+{
+	return m_pCurMousePos - m_pPrevMousePos;
 }

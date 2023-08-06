@@ -13,6 +13,7 @@
 
 #include "RenderThread.h"
 #include "ResourceManager.h"
+#include <atomic>
 
 class RenderEngine
 {
@@ -30,6 +31,8 @@ public:
 	void SetQuit(bool bQuit) { m_bQuit = bQuit; }
 
 	RenderThread* GetRT() const { return m_pRT; }
+	HWND GetWinHandle() { return m_pHWND; }
+	std::atomic<bool> isInited;
 
 private:
 	bool SetOgreConfig();
@@ -53,7 +56,8 @@ private:
 
 	RenderThread* m_pRT;
 	ResourceManager* m_pResourceManager;
-
+	HWND m_pHWND;
+	
 	bool m_bQuit;
 };
 

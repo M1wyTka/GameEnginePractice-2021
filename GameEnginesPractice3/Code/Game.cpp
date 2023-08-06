@@ -1,5 +1,5 @@
 #include "Game.h"
-
+#include <iostream>
 Game::Game() :
 	m_pRenderEngine(nullptr)
 {
@@ -12,24 +12,33 @@ Game::Game() :
 }
 
 Game::~Game()
-{
+{	
 }
 
 void Game::Run()
 {
 	m_Timer.Reset();
-
+	bool isDone = false;
 	while (true)
 	{
 		m_pRenderEngine->GetRT()->RC_BeginFrame();
 
 		m_Timer.Tick();
 
-		if (m_pInputHandler)
-			m_pInputHandler->Update();
+		if (!isDone && m_pRenderEngine->isInited) 
+		{
+			m_pInputHandler->SetWinHandle(m_pRenderEngine->GetWinHandle());
+			isDone = true;
+		}
 
-		if (!Update())
-			break;
+		if (m_pInputHandler) {
+			m_pInputHandler->Update();
+		}
+			
+
+		if(isDone)
+			if (!Update())
+				break;
 
 		m_pRenderEngine->GetRT()->RC_EndFrame();
 	}
@@ -47,8 +56,12 @@ bool Game::Update()
 		offset += 1.0f;
 	offset *= m_Timer.DeltaTime();
 
-	m_pRenderEngine->GetRT()->RC_OscillateCamera(10.0f + sin(t));
-	m_pRenderEngine->GetRT()->RC_MoveOgreHead(offset);
+	Ogre::Vector2 MousePos = m_pInputHandler->MousePos();
+	Ogre::Vector2 delta = m_pInputHandler->DeltaMousePos();
+	float x = MousePos.x;
+	float y = MousePos.y;
+	m_pRenderEngine->GetRT()->RC_OscillateCamera(10 + sin(t));
+	m_pRenderEngine->GetRT()->RC_MoveOgreHead(delta.x/100);
 
 	return true;
 }

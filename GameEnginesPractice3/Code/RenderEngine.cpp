@@ -14,7 +14,7 @@ RenderEngine::RenderEngine(ResourceManager* pResourceManager) :
 	m_pResourceManager(pResourceManager)
 {
 	m_pRT = new RenderThread(this);
-
+	isInited = false;
 	m_pRT->RC_Init();
 	m_pRT->RC_SetupDefaultCamera();
 	m_pRT->RC_SetupDefaultCompositor();
@@ -77,9 +77,11 @@ void RenderEngine::RT_Init()
 	Ogre::String sTitleName = "Game Engine";
 
 	m_pRenderWindow = Ogre::Root::getSingleton().createRenderWindow(sTitleName, width, height, false);
-
+	m_pRenderWindow->getCustomAttribute("WINDOW", &m_pHWND);
+	POINT m_pMousePos;
+	ScreenToClient(m_pHWND, &m_pMousePos);
 	// Scene manager
-	m_pSceneManager = m_pRoot->createSceneManager(Ogre::SceneType::ST_GENERIC, 1);
+	m_pSceneManager = m_pRoot->createSceneManager(Ogre::SceneType::ST_GENERIC, 2);
 }
 
 void RenderEngine::RT_SetupDefaultCamera()
@@ -150,6 +152,7 @@ void RenderEngine::RT_LoadOgreHead()
 		createChildSceneNode(Ogre::SCENE_DYNAMIC);
 	m_pSceneNode->attachObject(item);
 	m_pSceneNode->scale(0.1f, 0.1f, 0.1f);
+	isInited = true;
 }
 
 void RenderEngine::RT_SetupDefaultLight()
